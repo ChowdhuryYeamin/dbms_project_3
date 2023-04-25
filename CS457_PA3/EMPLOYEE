@@ -1,4 +1,0 @@
-ID INT | NAME VARCHAR(10)
-1 | 'JOE'
-2 | 'JACK'
-3 | 'GILL'

@@ -1,3 +1,7 @@
+#Author: Yeamin Chowdhury
+#Date: 04/03/2023
+#Description: This program is a database management system that can create, delete, and modify databases and tables. It can also insert, perform default join as inner join, inner join on inner join command and left outer join on tables. It can also select data from tables.
+
 # import the os and shutil modules
 import os
 import shutil
@@ -13,12 +17,13 @@ def main():
             c = 0
             input_command = ''
             while True:
-                com_line = input()
+                com_line = input().rstrip()
                 c += 1
                 input_command += com_line + ' '
-                if com_line.endswith(';') or c == 3:
+                input_command = input_command.upper()
+                if com_line.endswith(';') or c == 3 or  com_line == '':
                     break
-                if com_line == '.exit':
+                if com_line == '.exit' or com_line == '.EXIT':
                     print("All done.")
                     exit()
 
@@ -111,8 +116,8 @@ def command(input):
         print("Insufficient command arguments")
 
 
-#select * from Employee E, Sales S where E.id = S.employeeID;
-#this function with work like equi-join
+
+#this function performs inner joins on the two tables
 def select_join(t_dict, a_dict, operator):
     #if the current directory is the same as the directory of the program, then the database is not selected
     if os.getcwd() == os.path.dirname(os.path.abspath(__file__)):
@@ -173,6 +178,89 @@ def select_join(t_dict, a_dict, operator):
         for i in indices:
             print(" | ".join(cross_products[i]))
 
+#this function performs outer left joins on the two tables
+def select_join_outer_left(t_dict, a_dict, operator):
+    #if the current directory is the same as the directory of the program, then the database is not selected
+    if os.getcwd() == os.path.dirname(os.path.abspath(__file__)):
+        print("!Failed to select values from " + t_dict[0] + " and " + t_dict[1] + " because no database is selected.")
+        return
+    #check if the tables exist, open the files and print the contents.
+    table_names = list(t_dict.items())
+    attributes_names = list(a_dict.items())
+    if os.path.exists(table_names[0][0]) and os.path.exists(table_names[1][0]):
+        file_1 = open(table_names[0][0], "r")
+        file_2 = open(table_names[1][0], "r")
+    else:
+        #use table_names
+        print("!Failed to select values from " + table_names[0][0] + " and " + table_names[1][0] + " because one or more of the tables do not exist.")
+        return
+    
+
+    #checks if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message    
+    first_line_1 = file_1.readline()
+    first_line_2 = file_2.readline()
+    file_1_items, file_2_items = [], []
+    #reads each line of the file, strip the newline character and split the line into a list by the delimiter " | "
+    for line_1, line_2 in zip(file_1, file_2):
+        file_1_items.append(line_1.strip("\n").split(" | "))
+        file_2_items.append(line_2.strip("\n").split(" | ")) 
+    file_1.close()
+    file_2.close()
+
+
+    first_line_list_1 = first_line_1.strip("\n").split(" | ")
+    first_line_list_2 = first_line_2.strip("\n").split(" | ")
+    first_line_list_printer = first_line_list_1 + first_line_list_2
+
+    #makes a cross product of the two files_items lists
+    cross_products = cross_product(file_1_items, file_2_items)
+            
+
+    #checks if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message
+    att_name_without_type = separate_attributes_from_types(first_line_list_printer)
+
+    #checks if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message
+    if attributes_names[0][0] in att_name_without_type and attributes_names[1][0] in att_name_without_type:
+        index_1 = att_name_without_type.index(attributes_names[0][0])
+        index_2 = att_name_without_type.index(attributes_names[1][0])
+    else:
+        print("!Failed to select values from " + table_names[0][0] + " and " + table_names[1][0] + " because one or more of the attributes do not exist.")
+        return
+
+
+    #checks if the operator is valid, and if it is, then call the function that returns the indices of the records that match the condition
+    if operator == "=":
+        indices = []
+        indices = indices_of_records_that_match_condition(cross_products, index_1, index_2, operator)
+        #move element from cross_products to a new list if the index is in indices
+        left_join_list = []
+        for i in range(0, len(cross_products)):
+            if i in indices:
+                left_join_list.append(cross_products[i])
+
+        len_2 = len(file_1_items[0])
+        #perform union
+        for item in file_1_items:
+            found = False
+            for i in left_join_list:
+                if item[:len_2] == i[:len_2]:
+                    found = True
+                    break
+            if not found:
+                left_join_list.append(item)
+
+        #fill all cells of a row that does not match the length of the first line witn "NULL"
+        for i in range(0, len(left_join_list)):
+            while len(left_join_list[i]) < len(first_line_list_printer):
+                left_join_list[i].append("")
+
+
+        
+        #print the first line
+        print(" | ".join(first_line_list_printer)) 
+        #print the rest of the elements
+        for item in left_join_list:
+            print(" | ".join(item))
 
 #this function takes two lists and returns a cross product of the two lists
 def cross_product(list_1, list_2):
@@ -197,95 +285,6 @@ def indices_of_records_that_match_condition(cross_product, index_1, index_2, ope
             if cross_product[i][index_1] == cross_product[i][index_2]:
                 indices.append(i)
     return indices
-
-#make a function for left outer join that that cross product of the two files_items lists, the indices of the attributes to be compared, and the operator
-# def indices_of_record_of_left_outer_join(cross_product, index_1, index_2, operator):
-#     indices = []
-#     current_attribute = cross_product[0][index_1]
-#     for i in range(0, len(cross_product)):
-#         if operator == "=" and cross_product[i][index_1] == cross_product[i][index_2]:
-#             indices.append(i)
-#     return indices
-
-
-
-def select_join_outer_left(t_dict, a_dict, operator):
-    #if the current directory is the same as the directory of the program, then the database is not selected
-    if os.getcwd() == os.path.dirname(os.path.abspath(__file__)):
-        print("!Failed to select values from " + t_dict[0] + " and " + t_dict[1] + " because no database is selected.")
-        return
-    #check if the tables exist, open the files and print the contents.
-    table_names = list(t_dict.items())
-    attributes_names = list(a_dict.items())
-    if os.path.exists(table_names[0][0]) and os.path.exists(table_names[1][0]):
-        file_1 = open(table_names[0][0], "r")
-        file_2 = open(table_names[1][0], "r")
-    else:
-        #use table_names
-        print("!Failed to select values from " + table_names[0][0] + " and " + table_names[1][0] + " because one or more of the tables do not exist.")
-        return
-    
-
-    #check if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message    
-    first_line_1 = file_1.readline()
-    first_line_2 = file_2.readline()
-    file_1_items, file_2_items = [], []
-    #read each line of the file, strip the newline character and split the line into a list by the delimiter " | "
-    for line_1, line_2 in zip(file_1, file_2):
-        file_1_items.append(line_1.strip("\n").split(" | "))
-        file_2_items.append(line_2.strip("\n").split(" | ")) 
-    file_1.close()
-    file_2.close()
-
-
-    first_line_list_1 = first_line_1.strip("\n").split(" | ")
-    first_line_list_2 = first_line_2.strip("\n").split(" | ")
-    first_line_list_printer = first_line_list_1 + first_line_list_2
-
-    #now make a cross product of the two files_items lists
-    cross_products = cross_product(file_1_items, file_2_items)
-            
-
-    #now check if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message
-    att_name_without_type = separate_attributes_from_types(first_line_list_printer)
-
-    #check if the attributes exist in the first line and if they do, get their indices. Otherwise, print an error message
-    if attributes_names[0][0] in att_name_without_type and attributes_names[1][0] in att_name_without_type:
-        index_1 = att_name_without_type.index(attributes_names[0][0])
-        index_2 = att_name_without_type.index(attributes_names[1][0])
-    else:
-        print("!Failed to select values from " + table_names[0][0] + " and " + table_names[1][0] + " because one or more of the attributes do not exist.")
-        return
-
-
-    #checks if the operator is valid, and if it is, then call the function that returns the indices of the records that match the condition
-    if operator == "=":
-        indices = []
-        indices = indices_of_records_that_match_condition(cross_products, index_1, index_2, operator)
-        #move element from cross_products to a new list if the index is in indices
-        left_join_list = []
-        for i in range(0, len(cross_products)):
-            if i in indices:
-                left_join_list.append(cross_products[i])
-
-        len_2 = len(file_1_items[0])
-        for item in file_1_items:
-            found = False
-            for i in left_join_list:
-                if item[:len_2] == i[:len_2]:
-                    found = True
-                    break
-            if not found:
-                left_join_list.append(item)
-        
-        #print the first line
-        print(" | ".join(first_line_list_printer)) 
-        #now print the records that match the condition
-        #print each element of left_join_list with the delimiter " | " and "\n" at the end of each line
-        for item in left_join_list:
-            print(" | ".join(item))
-
-
 
 
 
